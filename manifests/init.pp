@@ -38,7 +38,7 @@ define dolibarr::install (
   exec { "dolibarr::install::extract ${version} to ${dolibarr_path}":
     unless  => "test -d ${dolibarr_path}",
     cwd     => "${src_path}",
-    command => "tar -xzf ${archive_tmp} ; mv ${src_path}/dolibarr-${version} ${dolibarr_path}",
+    command => "tar -xzf ${archive_tmp} && mv ${src_path}/dolibarr-${version} ${dolibarr_path} && chown -R www-data:www-data ${dolibarr_path} && find ${dolibarr_path} -type f -exec chmod 644 {} \; && find ${dolibarr_path} -type d -exec chmod 755 {} \;",
     require => [
       Exec["dolibarr::install::download ${version}"],
       File["${root}/dolibarr"]
@@ -46,15 +46,18 @@ define dolibarr::install (
   }
 
   file { "${dolibarr_path}":
-    recurse   => true,
-    owner     => "www-data",
-    group     => "www-data",
-    mode      => 0644,
-    require   => Exec["dolibarr::install::extract ${version} to ${dolibarr_path}"]
+    ensure => 'directory',
+    owner => "www-data",
+    group => "www-data",
+    #owner => "root",
+    #group => "root",
+    recurse => true,
+    mode => 644,
+    require => Exec["dolibarr::install::extract ${version} to ${dolibarr_path}"]
   }
 
   file { ["${root}/erp", "${root}/erp/documents", "${root}/erp/configuration"]:
-    ensure    => directory,
+    ensure    => 'directory',
     owner     => "www-data",
     group     => "www-data",
     mode      => 0644
