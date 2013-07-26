@@ -51,7 +51,6 @@ define dolibarr::install (
     group => "www-data",
     #owner => "root",
     #group => "root",
-    recurse => true,
     mode => 644,
     require => Exec["dolibarr::install::extract ${version} to ${dolibarr_path}"]
   }
@@ -64,7 +63,7 @@ define dolibarr::install (
   }
 
   file { "${root}/erp/configuration/conf.php":
-    ensure    => exist,
+    ensure    => present,
     owner     => "www-data",
     group     => "www-data",
     mode      => 0644,
@@ -89,6 +88,22 @@ define dolibarr::install (
     require   => File["${dolibarr_path}", "${root}/erp/configuration/conf.php"]
   }
 
+}
+
+define dolibarr::pre_configure (
+  $db_root_pwd,
+  $http_root,
+  $db_name,
+  $db_user,
+  $db_pswd
+) {
+  # this "function" allow to check and do what must be done previously to configuration
+  $data_folder = "/vagrant/data/dolibarr"
+
+  exec { "dolibarr::pre_configure::drop_db":
+    command   => "mysql --user=root --password=${db_root_pwd} --execute='DROP DATABASE IF EXISTS ${db_name}'",
+    onlyif    => "test -f ${data_folder}/drop.db"
+  }
 }
 
 define dolibarr::configure (
