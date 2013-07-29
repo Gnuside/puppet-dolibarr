@@ -88,7 +88,7 @@ define dolibarr::install (
     owner     => "www-data",
     group     => "www-data",
     mode      => 0644,
-    require   => File["${dolibarr_path}", "${root}/erp/configuration/conf.php"]
+    require   => File["${root}/erp/root", "${dolibarr_path}", "${root}/erp/configuration/conf.php"]
   }
 
 }
