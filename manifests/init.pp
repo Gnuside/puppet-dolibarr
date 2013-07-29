@@ -11,8 +11,10 @@ class dolibarr {
 
 define dolibarr::install (
   $root,
+  $db_name,
   $version = "3.4.0"
 ) {
+  $data_folder = "/vagrant/data/dolibarr"
   $src_path = "/usr/local/src"
   $archive_name = "dolibarr-${version}.tgz"
   $archive_url = "http://www.dolibarr.org/files/stable/standard/${archive_name}"
@@ -66,7 +68,8 @@ define dolibarr::install (
     ensure    => present,
     owner     => "www-data",
     group     => "www-data",
-    mode      => 0644,
+    mode      => 0400,
+    content => template("${data_folder}/${db_name}.conf.php"),
     require   => File["${root}/erp/configuration"]
   }
 
@@ -76,7 +79,7 @@ define dolibarr::install (
     owner     => "www-data",
     group     => "www-data",
     mode      => 0644,
-    require   => File["${dolibarr_path}", "${root}/erp"]
+    require   => File["${dolibarr_path}", "${root}/erp", "${root}/erp/configuration/conf.php"]
   }
 
   file { "${root}/erp/root/htdocs/conf/conf.php":
@@ -100,10 +103,6 @@ define dolibarr::pre_configure (
   # this "function" allow to check and do what must be done previously to configuration
   $data_folder = "/vagrant/data/dolibarr"
 
-  exec { "dolibarr::pre_configure::drop_db":
-    command   => "mysql --user=root --password=${db_root_pwd} --execute='DROP DATABASE IF EXISTS ${db_name}'",
-    onlyif    => "test -f ${data_folder}/drop.db"
-  }
 }
 
 define dolibarr::configure (
@@ -112,5 +111,20 @@ define dolibarr::configure (
   $db_user,
   $db_pswd
 ) {
+  $data_folder = "/vagrant/data/dolibarr"
+
+  exec { "dolibarr::pre_configure::db_extract":
+    command   => "cat ${db_name}.sql.bz2 | bunzip2 -d > ${db_name}.sql",
+    creates   => "${data_folder}/${db_name}.sql",
+    cwd       => "${data_folder}"
+  }
+
+  exec { "dolibarr::configure::db_push":
+    require   => Exec["dolibarr::pre_configure::db_extract"],
+    command   => "mysql --user=root --password=vagrant ${db_name} < ${db_name}.sql",
+    unless    => "mysql --user=root --password=vagrant --execute='SHOW DATABASES LIKE \'com_gnuside_er.p\';' | wc -l | grep -qv '^0$'",
+    cwd       => "${data_folder}"
+  }
+
 
 }
