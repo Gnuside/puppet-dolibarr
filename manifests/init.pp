@@ -121,8 +121,8 @@ define dolibarr::configure (
 
   exec { "dolibarr::configure::db_push":
     require   => Exec["dolibarr::pre_configure::db_extract"],
-    command   => "mysql --user=root --password=vagrant ${db_name} < ${db_name}.sql",
-    unless    => "mysql --user=root --password=vagrant --execute='SHOW DATABASES LIKE \'com_gnuside_er.p\';' | wc -l | grep -qv '^0$'",
+    command   => "mysql --user=${db_user} --password=${db_pswd} ${db_name} < ${db_name}.sql",
+    unless    => "mysql --user=${db_user} --password=${db_pswd} --execute='SHOW DATABASES LIKE \'com_gnuside_erp\';' | wc -l | grep -qv '^0$'",
     cwd       => "${data_folder}"
   }
 
