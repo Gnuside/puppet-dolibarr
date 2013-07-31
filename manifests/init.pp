@@ -106,6 +106,7 @@ define dolibarr::pre_configure (
 }
 
 define dolibarr::configure (
+  $root,
   $http_basename,
   $http_root,
   $db_name,
@@ -132,7 +133,7 @@ define dolibarr::configure (
     command   => "/vagrant/puppet/remote-modules/dolibarr/scripts/upgrade_db.sh ${http_basename}"
   }
 
-  file { "${http_root}/../../documents/install.lock":
+  file { "${root}/erp/documents/install.lock":
     ensure    => "present",
     owner     => "www-data",
     group     => "www-data",
@@ -140,13 +141,10 @@ define dolibarr::configure (
     require   => Exec["dolibarr::configure::db_upgrade"]
   }
 
-  #  file { "${root}/erp/configuration/conf.php":
-  #  ensure    => present,
-  #  owner     => "www-data",
-  #  group     => "www-data",
-  #  mode      => 0400,
-  #  require   => File["${http_root}/install.lock"]
-  #}
+  exec { "dolibarr::configure::configuration/conf.php reset permissions":
+    command   => "chmod 0400 ${root}/erp/configuration/conf.php",
+    require   => File["${root}/erp/documents/install.lock"]
+  }
 
 
 }
