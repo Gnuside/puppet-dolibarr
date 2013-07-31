@@ -40,7 +40,7 @@ define dolibarr::install (
   exec { "dolibarr::install::extract ${version} to ${dolibarr_path}":
     unless  => "test -d ${dolibarr_path}",
     cwd     => "${src_path}",
-    command => "tar -xzf ${archive_tmp} && mv ${src_path}/dolibarr-${version} ${dolibarr_path} && chown -R www-data:www-data ${dolibarr_path} && find ${dolibarr_path} -type f -exec chmod 644 {} \; && find ${dolibarr_path} -type d -exec chmod 755 {} \;",
+    command => "tar -xzf ${archive_tmp} && mv ${src_path}/dolibarr-${version} ${dolibarr_path} && chown -R www-data:www-data ${dolibarr_path} && find ${dolibarr_path} -type f -exec chmod 644 {} \\; && find ${dolibarr_path} -type d -exec chmod 755 {} \\;",
     require => [
       Exec["dolibarr::install::download ${version}"],
       File["${root}/dolibarr"]
@@ -68,7 +68,7 @@ define dolibarr::install (
     ensure    => present,
     owner     => "www-data",
     group     => "www-data",
-    mode      => 0400,
+    mode      => 0644,
     content => template("${data_folder}/${db_name}.conf.php"),
     require   => File["${root}/erp/configuration"]
   }
@@ -106,6 +106,7 @@ define dolibarr::pre_configure (
 }
 
 define dolibarr::configure (
+  $http_basename,
   $http_root,
   $db_name,
   $db_user,
@@ -113,18 +114,39 @@ define dolibarr::configure (
 ) {
   $data_folder = "/vagrant/data/dolibarr"
 
-  exec { "dolibarr::pre_configure::db_extract":
+  exec { "dolibarr::configure::db_extract":
     command   => "cat ${db_name}.sql.bz2 | bunzip2 -d > ${db_name}.sql",
     creates   => "${data_folder}/${db_name}.sql",
     cwd       => "${data_folder}"
   }
 
   exec { "dolibarr::configure::db_push":
-    require   => Exec["dolibarr::pre_configure::db_extract"],
+    require   => Exec["dolibarr::configure::db_extract"],
     command   => "mysql --user=${db_user} --password=${db_pswd} ${db_name} < ${db_name}.sql",
     unless    => "mysql --user=${db_user} --password=${db_pswd} --execute='SHOW DATABASES LIKE \'com_gnuside_erp\';' | wc -l | grep -qv '^0$'",
     cwd       => "${data_folder}"
   }
+
+  exec { "dolibarr::configure::db_upgrade":
+    require   => Exec["dolibarr::configure::db_push"],
+    command   => "/vagrant/puppet/remote-modules/dolibarr/scripts/upgrade_db.sh ${http_basename}"
+  }
+
+  file { "${http_root}/../../documents/install.lock":
+    ensure    => "present",
+    owner     => "www-data",
+    group     => "www-data",
+    mode      => 0644,
+    require   => Exec["dolibarr::configure::db_upgrade"]
+  }
+
+  #  file { "${root}/erp/configuration/conf.php":
+  #  ensure    => present,
+  #  owner     => "www-data",
+  #  group     => "www-data",
+  #  mode      => 0400,
+  #  require   => File["${http_root}/install.lock"]
+  #}
 
 
 }
