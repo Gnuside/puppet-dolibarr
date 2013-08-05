@@ -2,7 +2,7 @@
 
 SITE=$1
 FILE="/tmp/dolibarr_upgrade_cookies.txt"
-AGENT="Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US) AppleWebKit/525.13 (KHTML, like Gecko) Chrome/0.X.Y.Z Safari/525.13."
+AGENT="Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US)"
 
 while :
 do
