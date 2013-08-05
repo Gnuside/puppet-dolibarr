@@ -12,9 +12,9 @@ class dolibarr {
 define dolibarr::install (
   $root,
   $db_name,
-  $version = "3.4.0"
-) {
+  $version = "3.4.0",
   $data_folder = "/vagrant/data/dolibarr"
+) {
   $src_path = "/usr/local/src"
   $archive_name = "dolibarr-${version}.tgz"
   $archive_url = "http://www.dolibarr.org/files/stable/standard/${archive_name}"
@@ -25,7 +25,7 @@ define dolibarr::install (
     ensure => 'directory',
     owner => "www-data",
     group => "www-data",
-    mode => 0644
+    mode => 0755
   }
 
   exec { "dolibarr::install::download ${version}":
@@ -53,7 +53,7 @@ define dolibarr::install (
     group => "www-data",
     #owner => "root",
     #group => "root",
-    mode => 644,
+    mode => 755,
     require => Exec["dolibarr::install::extract ${version} to ${dolibarr_path}"]
   }
 
@@ -62,7 +62,7 @@ define dolibarr::install (
     target    => "${dolibarr_path}",
     owner     => "www-data",
     group     => "www-data",
-    mode      => 0644,
+    mode      => 0755,
     require   => File["${dolibarr_path}", "${root}/erp"]
   }
 
@@ -70,7 +70,7 @@ define dolibarr::install (
     ensure    => 'directory',
     owner     => "www-data",
     group     => "www-data",
-    mode      => 0644
+    mode      => 0755
   }
 
   ## CONFIGURATION files sections
@@ -81,7 +81,7 @@ define dolibarr::install (
     # version installed, and we need to update it. So we don't execuce this node.
     unless    => "test -d ${root}/erp/configuration",
     cwd       => "${root}/erp",
-    command   => "mkdir -p configuration-${version} && chown www-data:www-data configuration-${version} && chmod 0644 configuration-${version}",
+    command   => "mkdir -p configuration-${version} && chown www-data:www-data configuration-${version} && chmod 0755 configuration-${version}",
     before    => File["${root}/erp/configuration"]
   }
 
@@ -100,7 +100,7 @@ define dolibarr::install (
     target    => "${root}/erp/configuration-${version}",
     owner     => "www-data",
     group     => "www-data",
-    mode      => 0644
+    mode      => 0777
   }
 
   ## DOCUMENTS files sections
@@ -111,7 +111,7 @@ define dolibarr::install (
     # version installed, and we need to update it. So we don't execuce this node.
     unless    => "test -d ${root}/erp/documents",
     cwd       => "${root}/erp",
-    command   => "mkdir -p documents-${version} && chown www-data:www-data documents-${version} && chmod 0644 documents-${version}",
+    command   => "mkdir -p documents-${version} && chown www-data:www-data documents-${version} && chmod 0755 documents-${version}",
     before    => File["${root}/erp/documents"]
   }
 
@@ -130,7 +130,7 @@ define dolibarr::install (
     target    => "${root}/erp/documents-${version}",
     owner     => "www-data",
     group     => "www-data",
-    mode      => 0644
+    mode      => 0777
   }
 
 
@@ -143,10 +143,13 @@ define dolibarr::configure (
   $http_root,
   $db_name,
   $db_user,
-  $db_pswd
-) {
+  $db_pswd,
   $data_folder = "/vagrant/data/dolibarr"
+) {
 
+  exec { "REMOVE ${root}/erp/documents/install.lock":
+    command   => "rm -f ${root}/erp/documents/install.lock"
+  }
 
   ## Configuration file part.
   exec { "COPY ${root}/erp/configuration/conf.php from Data":
@@ -179,7 +182,7 @@ define dolibarr::configure (
   exec { "dolibarr::configure::db_extract_n_push":
     # Push database stored in data folder except if a database already exist.
     onlyif    => "test -e ${data_folder}/${db_name}.sql.bz2",
-    unless    => "mysql --user=${db_user} --password=${db_pswd} --execute=\"SHOW TABLES FROM '${db_name}';\" | wc -l | grep -qv '^0$'",
+    unless    => "mysql --user=${db_user} --password=${db_pswd} --execute=\"SHOW TABLES FROM ${db_name};\" | wc -l | grep -qv '^0$'",
     command   => "cat ${db_name}.sql.bz2 | bunzip2 -d | mysql --user=${db_user} --password=${db_pswd} ${db_name}",
     cwd       => "${data_folder}"
   }
@@ -195,7 +198,14 @@ define dolibarr::configure (
 
   ## Upgrade through the interface if needed !
   exec { "dolibarr::configure::upgrade":
-    require   => Exec["dolibarr::configure::db_extract_n_push"],
+    require   => [
+      Exec[
+        "dolibarr::configure::db_extract_n_push",
+        "dolibarr::configure::doc_extract_n_copy",
+        "REMOVE ${root}/erp/documents/install.lock"
+      ],
+      File["${root}/erp/root/htdocs/conf/conf.php"]
+    ],
     command   => "/vagrant/puppet/remote-modules/dolibarr/scripts/upgrade.sh ${http_basename}"
   }
 
@@ -207,13 +217,7 @@ define dolibarr::configure (
     owner     => "www-data",
     group     => "www-data",
     mode      => 0644,
-    require   => [
-      Exec[
-        "dolibarr::configure::upgrade",
-        "dolibarr::configure::doc_extract_n_copy"
-      ],
-      File["${root}/erp/root/htdocs/conf/conf.php"]
-    ]
+    require   => Exec[ "dolibarr::configure::upgrade" ]
   }
 
   exec { "dolibarr::configure::configuration/conf.php reset permissions":
