@@ -206,7 +206,7 @@ define dolibarr::configure (
       ],
       File["${root}/erp/root/htdocs/conf/conf.php"]
     ],
-    command   => "/vagrant/puppet/remote-modules/dolibarr/scripts/upgrade.sh ${http_basename}"
+    command   => "${data_folder}/../../puppet/remote-modules/dolibarr/scripts/upgrade.sh ${http_basename}"
   }
 
 
